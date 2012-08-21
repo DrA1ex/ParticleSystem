@@ -1,4 +1,4 @@
-// RenderToTexture.cpp: определяет точку входа для приложения.
+// RenderToTexture.cpp: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 //
 #include "stdafx.h"
 #include "RenderToTexture.h"
@@ -27,8 +27,8 @@ UINT_PTR timer = NULL;
 
 //Constant
 
-const float defG = 16.6738480f; // Гравитационная постоянная умноженная на массу "курсора"
-const float defResistance = 0.9975f; // Сопротивление среде
+const float defG = 16.6738480f; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ"
+const float defResistance = 0.9975f; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 //////////
 
 float G = defG;
@@ -38,9 +38,9 @@ int Width = 0;
 int Height = 0;
 
 #ifdef _DEBUG
-int partCount = 50000; // Смещение между создаваемыми частицами
+int partCount = 50000;
 #else
-int partCount = 500000; // Смещение между создаваемыми частицами
+int partCount = 500000; 
 #endif
 
 int updateDataDelay = 8;
@@ -207,7 +207,7 @@ void initD3D()
 	renderTexture->GetSurfaceLevel(0, &renderTarget);
 	device->GetRenderTarget(0, &orig);
 
-	//Инициализация матриц
+	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 	D3DXMATRIX matrixView;
 	D3DXMATRIX matrixProjection;
 
