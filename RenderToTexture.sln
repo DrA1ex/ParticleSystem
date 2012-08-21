@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RenderToTexture", "RenderToTexture\RenderToTexture.vcxproj", "{996776C9-D3A0-4484-ABC2-64382898D722}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{996776C9-D3A0-4484-ABC2-64382898D722}.Debug|Win32.ActiveCfg = Debug|Win32
+		{996776C9-D3A0-4484-ABC2-64382898D722}.Debug|Win32.Build.0 = Debug|Win32
+		{996776C9-D3A0-4484-ABC2-64382898D722}.Release|Win32.ActiveCfg = Release|Win32
+		{996776C9-D3A0-4484-ABC2-64382898D722}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
+EndGlobal
