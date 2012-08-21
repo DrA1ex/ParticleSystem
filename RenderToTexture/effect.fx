@@ -94,9 +94,9 @@ vector blend(vector bottom, vector top)
 	//return vector( 1 - (1-bottom.rgb)/top.rgb, bottom.a);
 
 	//Linear light
-	float r = (top.r < 0.5)? (bottom.r + 2*(top.r - 0.5)) : (bottom.r + 2*top.r - 1);
-	float g = (top.g < 0.5)? (bottom.g + 2*(top.g - 0.5)) : (bottom.g + 2*top.g - 1);
-	float b = (top.b < 0.5)? (bottom.b + 2*(top.b - 0.5)) : (bottom.b + 2*top.b - 1);
+	float r = (top.r < 0.5)? (bottom.r + 2*top.r - 1) : (bottom.r + top.r);
+	float g = (top.g < 0.5)? (bottom.g + 2*top.g - 1) : (bottom.g + top.g);
+	float b = (top.b < 0.5)? (bottom.b + 2*top.b - 1) : (bottom.b + top.b);
 
 	return  vector(r,g,b,bottom.a);
 }
