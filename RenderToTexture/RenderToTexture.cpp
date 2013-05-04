@@ -1,10 +1,14 @@
-// RenderToTexture.cpp: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
+// RenderToTexture.cpp: определяет точку входа для приложения.
 //
 #include "stdafx.h"
 #include "RenderToTexture.h"
+#include <d3d9.h>
+#include <d3dx9.h>
 #include <shellapi.h>
 
 #define SHIPPING_VERSION 
+
+#define RELEASE(x) if(x) {x->Release(); x = nullptr; }
 
 LPDIRECT3D9 d3d = NULL;
 LPDIRECT3DDEVICE9 device = NULL;
@@ -27,8 +31,8 @@ UINT_PTR timer = NULL;
 
 //Constant
 
-const float defG = 16.6738480f; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ"
-const float defResistance = 0.9975f; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+const float defG = 16.6738480f; // Гравитационная постоянная умноженная на массу "курсора"
+const float defResistance = 0.9975f; // Сопротивление среде
 //////////
 
 float G = defG;
@@ -37,17 +41,20 @@ float Resistance = defResistance;
 int Width = 0;
 int Height = 0;
 
+bool ManualControl = false;
+int animateSlowDown = 5;
+int animationType = 1;
+int mathModel = 1;
+
 #ifdef _DEBUG
 int partCount = 50000;
 #else
-int partCount = 500000; 
+int partCount = 200000;
 #endif
 
 int updateDataDelay = 8;
 
 float pointSize = 3;
-
-
 
 struct VertexData
 {
@@ -61,20 +68,68 @@ struct Particle
 };
 std::deque<Particle> particles;
 
+float step = 0.0;
+double r;
+int tmpCounter = 0;
+void UpdatePosition(int &mx, int &my)
+{
+	if(step > 360)
+	{
+		step = 0;
+	}
+
+	auto angle = step / (M_PI*2);
+
+	if(animationType == 0)
+	{
+		mx = r*cos(angle) + Width/2;
+		my = r*sin(angle) + Height/2;
+	}
+	else if(animationType == 1)
+	{
+		mx = sin(2*angle)*r + (Width/2);
+		my = cos(3*angle)*r + (Height/2);
+	}
+	else if(animationType == 2)
+	{
+		mx = sin(2*angle)*r + (Width/2);
+		my = sin(2*angle)*r + (Height/2);
+	}
+	else 
+	{
+		mx = (step - 180)*(r/360) + Width/2;
+		my = (step - 180)*(r/360) + Height/2;
+	}
+
+	if(++tmpCounter % animateSlowDown  == 0)
+		step+=0.5;
+}
+
 void animate()
 {
-	POINT pos;
-	GetCursorPos(&pos);
-	RECT rc;
-	GetClientRect(hMainWnd, &rc); 
-	ScreenToClient(hMainWnd, &pos);
+	int mx = 0;
+	int my = 0;
+	if(ManualControl)
+	{
+		POINT pos;
+		GetCursorPos(&pos);
+		RECT rc;
+		GetClientRect(hMainWnd, &rc); 
+		ScreenToClient(hMainWnd, &pos);
 
-	const int mx = pos.x;
-	const int my = pos.y;
+		mx = pos.x;
+		my = pos.y;
+	}
+	else
+	{
+		UpdatePosition(mx, my);
+	}
+
+
 	const auto size = particles.size();
 
 	float force;
-	float dist;
+	float distSquare;
 
 	VertexData *pVertexBuffer;
 	pVertexObject->Lock(0, 0, (void**)&pVertexBuffer, D3DLOCK_DISCARD);
@@ -82,29 +137,44 @@ void animate()
 	int i;
 #pragma omp parallel \
 	shared(pVertexBuffer, particles, mx, my, size) \
-	private(i, force, dist)
-{
-		#pragma omp for
+	private(i, force, distSquare)
+	{
+#pragma omp for
 		for( i = 0; i < size; ++i )
 		{
 			auto &x = particles[i].x;
 			auto &y = particles[i].y;
 
-			dist = sqrt( pow( x - mx, 2 ) + pow( y - my, 2 ) );
-			if( dist < 20 )
+			float xForce = 0;
+			float yForce = 0;
+
+			if(mathModel == 1)
 			{
-				force = 0;
+				distSquare = pow( x - mx, 2 ) + pow( y - my, 2 );
+				if( distSquare < 400 )
+				{
+					force = 0;
+				}
+				else
+				{
+					force = G / distSquare;
+				}
+
+				xForce = (mx - x) * force;
+				yForce = (my - y) * force;
+
+				particles[i].vx *= Resistance;
+				particles[i].vy *= Resistance;
+
 			}
 			else
 			{
-				force = G / pow( dist, 2 );
+				float dir = atan2(x - mx, y - my)/M_PI*180;
+
+				xForce = -sin(dir*M_PI/180)/30;
+				yForce = -cos(dir*M_PI/180)/30;
+
 			}
-
-			const float xForce = (mx - x) * force;
-			const float yForce = (my - y) * force;
-
-			particles[i].vx *= Resistance;
-			particles[i].vy *= Resistance;
 
 			particles[i].vx += xForce;
 			particles[i].vy += yForce;
@@ -112,15 +182,38 @@ void animate()
 			x+= particles[i].vx;
 			y+= particles[i].vy;
 
+			bool reflectedX = false, reflectedY = false;
+
 			if( x > Width )
-				x -= Width;
+			{
+				reflectedX = true;
+				x = Width - (x - Width);
+			}
 			else if( x < 0 )
-				x += Width;
+			{
+				reflectedX = true;
+				x = -x;
+			}
 
 			if( y > Height )
-				y -= Height;
+			{
+				reflectedY = true;
+				y = Height - (y - Height);
+			}
 			else if( y < 0 )
-				y += Height;
+			{
+				reflectedY = true;
+				y = -y;
+			}
+
+			if(reflectedX)
+			{
+				particles[i].vx = -particles[i].vx * 0.5;
+			}
+			if(reflectedY)
+			{
+				particles[i].vy = -particles[i].vy * 0.5;
+			}
 
 			pVertexBuffer[i].x = particles[i].x;
 			pVertexBuffer[i].y = particles[i].y;
@@ -136,12 +229,12 @@ void initParticles()
 	Particle tmp;
 	for( int i = 0; i<partCount; ++i )
 	{
-			tmp.x  = rand()%Width;
-			tmp.y  = rand()%Height;
-			tmp.vx = rand()%2;
-			tmp.vy = rand()%2;
+		tmp.x  = rand()%Width;
+		tmp.y  = rand()%Height;
+		tmp.vx = rand()%2;
+		tmp.vy = rand()%2;
 
-			particles.push_back( tmp );
+		particles.push_back( tmp );
 	}
 }
 
@@ -160,9 +253,13 @@ void initD3D()
 	UINT AdapterToUse=D3DADAPTER_DEFAULT;
 	D3DDEVTYPE DeviceType=D3DDEVTYPE_HAL;
 #ifdef SHIPPING_VERSION
-	d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hMainWnd, 
-		D3DCREATE_HARDWARE_VERTEXPROCESSING, &PresentParams,
-		&device);
+	if (FAILED(d3d->CreateDevice( AdapterToUse, DeviceType, hMainWnd,
+		D3DCREATE_HARDWARE_VERTEXPROCESSING,
+		&PresentParams, &device) ) )
+	{
+		MessageBoxA(hMainWnd, "Unable to initialize PerfectHUD",0,MB_ICONHAND);
+		terminate();
+	}
 #else
 	// Look for 'NVIDIA PerfHUD' adapter
 	// If it is present, override default settings
@@ -179,13 +276,6 @@ void initD3D()
 		}
 	}
 #endif
-	if (FAILED(d3d->CreateDevice( AdapterToUse, DeviceType, hMainWnd,
-		D3DCREATE_HARDWARE_VERTEXPROCESSING,
-		&PresentParams, &device) ) )
-	{
-		MessageBoxA(hMainWnd, "Unable to initialize PerfectHUD",0,MB_ICONHAND);
-		terminate();
-	}
 
 	//////////////////////////////////////////////////////////////////////
 
@@ -207,7 +297,7 @@ void initD3D()
 	renderTexture->GetSurfaceLevel(0, &renderTarget);
 	device->GetRenderTarget(0, &orig);
 
-	//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+	//Инициализация матриц
 	D3DXMATRIX matrixView;
 	D3DXMATRIX matrixProjection;
 
@@ -340,19 +430,19 @@ void Init()
 
 void CleanUp() 
 {
-	if(pVertexObject) pVertexObject->Release();
-	if(vertexDecl) vertexDecl->Release();
-	if(pRectObject) pRectObject->Release();
-	if(RectDecl) RectDecl->Release();
-	if(effect) effect->Release();
-	if(renderTarget) renderTarget->Release();
+	RELEASE(pVertexObject)
+		RELEASE(vertexDecl)
+		RELEASE(pRectObject)
+		RELEASE(RectDecl)
+		RELEASE(effect)
+		RELEASE(renderTarget)
 
-	if(overlayTexture) overlayTexture->Release();
-	if(particleTexture) particleTexture->Release();
-	if(renderTexture) renderTexture->Release();
+		RELEASE(overlayTexture)
+		RELEASE(particleTexture)
+		RELEASE(renderTexture)
 
-	if(device) device->Release();
-	if(d3d) d3d->Release();
+		RELEASE(device)
+		RELEASE(d3d)
 }
 
 void initVariables() 
@@ -380,6 +470,26 @@ void initVariables()
 					{
 						partCount = _wtoi(data[i+1]);
 					}
+					else if(wcscmp(data[i]+1, L"animateSlowDown") == 0)
+					{
+						animateSlowDown = _wtoi(data[i+1]);
+					}
+					else if(wcscmp(data[i]+1, L"G") == 0)
+					{
+						G = _wtof(data[i+1]);
+					}
+					else if(wcscmp(data[i]+1, L"animationType") == 0)
+					{
+						animationType = _wtoi(data[i+1]);
+					}
+					else if(wcscmp(data[i]+1, L"mathModel") == 0)
+					{
+						mathModel = _wtoi(data[i+1]);
+					}
+				}
+				else if(wcscmp(data[i]+1, L"manual") == 0)
+				{
+					ManualControl = true;
 				}
 			}
 		}
@@ -401,6 +511,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInst, LPSTR lpCmdLine, in
 
 	Width = GetSystemMetrics(SM_CXSCREEN);
 	Height = GetSystemMetrics(SM_CYSCREEN);
+
+	r = (min(Height, Width)*0.7)/2; //Radius for animation (UpdatePosition)
 
 	hMainWnd = CreateWindow(L"RenderToTextureClass", 
 		L"Render to texture", 
@@ -485,8 +597,6 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	switch(msg)
 	{
 	case WM_SETCURSOR:
-
-
 		SetCursor( LoadCursor(NULL, IDC_CROSS) );
 		device->ShowCursor( TRUE );
 
@@ -495,8 +605,6 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_PAINT:
 
 		Render();
-
-
 		ValidateRect(hwnd, NULL);
 		return 0;
 
@@ -508,10 +616,14 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	case WM_LBUTTONDOWN:
 	case WM_LBUTTONUP:
-		G=-G;
+		if(ManualControl)
+		{
+			G=-G;
+		}
 		return 0;
 
 	case WM_MOUSEWHEEL:
+		if(ManualControl)
 		{
 			const auto keyState = GET_KEYSTATE_WPARAM(wParam);
 			int wheelDelta;
@@ -526,18 +638,19 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			}
 
 			G+= wheelDelta*0.05f;
-			return 0;
 		}
+		return 0;
 
 	case WM_RBUTTONUP:
+		if(ManualControl)
 		{
 			G=0;
-			return 0;
 		}
 
 		return 0;
 
 	case WM_KEYUP:
+		if(ManualControl)
 		{
 			switch (wParam)
 			{
@@ -571,8 +684,18 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				G = defG;
 				break;
 			}
-			return 0;
 		}
+		else
+		{
+			switch (wParam)
+			{
+			case VK_ESCAPE:
+				ShowWindow(hMainWnd, SW_HIDE);
+				PostQuitMessage(0);
+				break;
+			}
+		}
+		return 0;
 
 	case WM_DESTROY:
 		PostQuitMessage(0);

@@ -19,11 +19,9 @@
 
 
 // TODO: Установите здесь ссылки на дополнительные заголовки, требующиеся для программы
-
-#include <d3d9.h>
-#include <D3dx9.h>
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <eh.h>
 #include <deque>
 #include <time.h>
 #include <omp.h>
-
